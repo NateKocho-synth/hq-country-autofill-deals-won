@@ -1,0 +1,195 @@
+diff --git a/force-app/main/default/flows/Nikola_Order_Activate_Deals_Won_Slack.flow-meta.xml b/force-app/main/default/flows/Nikola_Order_Activate_Deals_Won_Slack.flow-meta.xml
+index 020ea1e4a..c469a812f 100644
+--- a/force-app/main/default/flows/Nikola_Order_Activate_Deals_Won_Slack.flow-meta.xml
++++ b/force-app/main/default/flows/Nikola_Order_Activate_Deals_Won_Slack.flow-meta.xml
+@@ -8,6 +8,7 @@
+         <actionName>slackPostMessage</actionName>
+         <actionType>slackPostMessage</actionType>
+         <connector>
++            <isGoTo>true</isGoTo>
+             <targetReference>Get_Competitors</targetReference>
+         </connector>
+         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+@@ -45,6 +46,52 @@
+         <offset>0</offset>
+         <storeOutputAutomatically>true</storeOutputAutomatically>
+     </actionCalls>
++    <actionCalls>
++        <name>Country_Auto_Filled</name>
++        <label>Country Auto Filled</label>
++        <locationX>0</locationX>
++        <locationY>0</locationY>
++        <actionName>slackPostMessage</actionName>
++        <actionType>slackPostMessage</actionType>
++        <connector>
++            <isGoTo>true</isGoTo>
++            <targetReference>Get_Competitors</targetReference>
++        </connector>
++        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
++        <inputParameters>
++            <name>slackAppIdForToken</name>
++            <value>
++                <stringValue>A028VJ1KG3G</stringValue>
++            </value>
++        </inputParameters>
++        <inputParameters>
++            <name>slackWorkspaceIdForToken</name>
++            <value>
++                <stringValue>T6377S7JN</stringValue>
++            </value>
++        </inputParameters>
++        <inputParameters>
++            <name>slackConversationId</name>
++            <value>
++                <stringValue>C03M9CSNCCS</stringValue>
++            </value>
++        </inputParameters>
++        <inputParameters>
++            <name>slackMessage</name>
++            <value>
++                <elementReference>CountryAutoFilled</elementReference>
++            </value>
++        </inputParameters>
++        <inputParameters>
++            <name>recordId</name>
++            <value>
++                <elementReference>$Record.OpportunityId</elementReference>
++            </value>
++        </inputParameters>
++        <nameSegment>slackPostMessage</nameSegment>
++        <offset>0</offset>
++        <storeOutputAutomatically>true</storeOutputAutomatically>
++    </actionCalls>
+     <actionCalls>
+         <name>Direct_Notification_for_Dashboard_Activation</name>
+         <label>Direct Notification for Dashboard Activation</label>
+@@ -692,7 +739,7 @@
+                 </rightValue>
+             </conditions>
+             <connector>
+-                <targetReference>Country_Audit</targetReference>
++                <targetReference>Enrichment_Country_Available</targetReference>
+             </connector>
+             <label>Yes</label>
+         </rules>
+@@ -744,6 +791,45 @@
+             <label>AE</label>
+         </rules>
+     </decisions>
++    <decisions>
++        <name>Enrichment_Country_Available</name>
++        <label>Enrichment Country Available</label>
++        <locationX>0</locationX>
++        <locationY>0</locationY>
++        <defaultConnector>
++            <targetReference>Country_Audit</targetReference>
++        </defaultConnector>
++        <defaultConnectorLabel>No Enrichment Country</defaultConnectorLabel>
++        <rules>
++            <name>Has_Enrichment_Country</name>
++            <conditionLogic>1 AND (2 OR 3)</conditionLogic>
++            <conditions>
++                <leftValueReference>Get_Opp.Parent_Account__c</leftValueReference>
++                <operator>IsNull</operator>
++                <rightValue>
++                    <booleanValue>false</booleanValue>
++                </rightValue>
++            </conditions>
++            <conditions>
++                <leftValueReference>Get_Opp.Parent_Account__r.ZoomInfo_Country__c</leftValueReference>
++                <operator>IsBlank</operator>
++                <rightValue>
++                    <booleanValue>false</booleanValue>
++                </rightValue>
++            </conditions>
++            <conditions>
++                <leftValueReference>Get_Opp.Parent_Account__r.Company_Country__c</leftValueReference>
++                <operator>IsBlank</operator>
++                <rightValue>
++                    <booleanValue>false</booleanValue>
++                </rightValue>
++            </conditions>
++            <connector>
++                <targetReference>Update_Parent_HQ_Country</targetReference>
++            </connector>
++            <label>Has Enrichment Country</label>
++        </rules>
++    </decisions>
+     <decisions>
+         <name>First_Competitor</name>
+         <label>First Competitor?</label>
+@@ -1175,7 +1261,7 @@
+             <label>Expansion</label>
+         </rules>
+     </decisions>
+-    <description>130326 - removed David from country audit notification. Added emojis to make it easier to distinguish between renewal and new arr</description>
++    <description>When parent Billing Country is blank on deals-won, stamp it from ZoomInfo Country or Company Country when available and post an auto-filled note to #revops-issues; only page Missing HQ Country when no enrichment country exists. 130326 - removed David from country audit notification. Added emojis to make it easier to distinguish between renewal and new arr</description>
+     <environments>Default</environments>
+     <formulas>
+         <name>CSname</name>
+@@ -1223,6 +1309,16 @@ TEXT({!Get_Opp.Type}) = &quot;Downgrade&quot;,
+ &quot;/ ARR Change: &quot;&amp;TEXT({!Get_Opp.ARR_Change_USD__c})&amp;&quot; USD&quot;, 
+ &quot;&quot;)</expression>
+     </formulas>
++    <formulas>
++        <name>for_HQCountrySource</name>
++        <dataType>String</dataType>
++        <expression>IF(NOT(ISBLANK({!Get_Opp.Parent_Account__r.ZoomInfo_Country__c})), &quot;ZoomInfo Country&quot;, &quot;Company Country&quot;)</expression>
++    </formulas>
++    <formulas>
++        <name>for_HQCountryStamp</name>
++        <dataType>String</dataType>
++        <expression>IF(NOT(ISBLANK({!Get_Opp.Parent_Account__r.ZoomInfo_Country__c})), {!Get_Opp.Parent_Account__r.ZoomInfo_Country__c}, {!Get_Opp.Parent_Account__r.Company_Country__c})</expression>
++    </formulas>
+     <formulas>
+         <name>for_firstdeal</name>
+         <dataType>String</dataType>
+@@ -1941,6 +2037,34 @@ ISPICKVAL({!Get_Opp.Type}, &apos;Upgrade&apos;)
+         <sortOrder>Desc</sortOrder>
+         <storeOutputAutomatically>true</storeOutputAutomatically>
+     </recordLookups>
++    <recordUpdates>
++        <name>Update_Parent_HQ_Country</name>
++        <label>Update Parent HQ Country</label>
++        <locationX>0</locationX>
++        <locationY>0</locationY>
++        <connector>
++            <targetReference>Country_Auto_Filled</targetReference>
++        </connector>
++        <faultConnector>
++            <isGoTo>true</isGoTo>
++            <targetReference>Country_Audit</targetReference>
++        </faultConnector>
++        <filterLogic>and</filterLogic>
++        <filters>
++            <field>Id</field>
++            <operator>EqualTo</operator>
++            <value>
++                <elementReference>Get_Opp.Parent_Account__c</elementReference>
++            </value>
++        </filters>
++        <inputAssignments>
++            <field>BillingCountry</field>
++            <value>
++                <elementReference>for_HQCountryStamp</elementReference>
++            </value>
++        </inputAssignments>
++        <object>Account</object>
++    </recordUpdates>
+     <start>
+         <locationX>0</locationX>
+         <locationY>0</locationY>
+@@ -1987,6 +2111,13 @@ ISPICKVAL({!Get_Opp.Type}, &apos;Upgrade&apos;)
+ *Sub Use Case:* {!Get_Opp.Sub_Use_Case__c}
+ *Awareness Source:* {!Get_Opp.Awareness_Source__c}
+ &lt;https://synthesia2022.lightning.force.com/lightning/r/Opportunity/{!Get_Opp.Id}/view|Go To Opportunity&gt;</text>
++    </textTemplates>
++    <textTemplates>
++        <name>CountryAutoFilled</name>
++        <isViewedAsPlainText>true</isViewedAsPlainText>
++        <text>HQ Country auto-filled
++Set Billing Country to {!for_HQCountryStamp} on the parent account from {!for_HQCountrySource}.
++&lt;https://synthesia2022.lightning.force.com/lightning/r/Account/{!Get_Opp.Parent_Account__c}/view|Review Parent Account&gt;</text>
+     </textTemplates>
+     <textTemplates>
+         <name>CountryAudit</name>
